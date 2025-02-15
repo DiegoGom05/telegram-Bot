@@ -26,29 +26,41 @@ IMGUR_CLIENT_ID = os.getenv("IMGUR_CLIENT_ID")
 # Estado del usuario para guardar datos
 user_data = {}
 
-
 def upload_to_netlify(file_path, title):
     url = "https://api.netlify.com/api/v1/sites"
-    headers = {"Authorization": f"Bearer {NETLIFY_TOKEN}", "Content-Type": "application/json"}
+    headers = {
+        "Authorization": f"Bearer {NETLIFY_TOKEN}",
+        "Content-Type": "application/json"
+    }
 
-    # Crear un nuevo sitio si no tienes uno
-    response = requests.post(url, headers=headers, json={})
-    site_info = response.json()
-    site_id = site_info["site_id"]
+    try:
+        # Crear un nuevo sitio si no tienes uno
+        response = requests.post(url, headers=headers, json={})
+        response.raise_for_status()  # Lanza una excepción si la solicitud falla
+        site_info = response.json()  # Intenta analizar la respuesta como JSON
+        site_id = site_info["site_id"]
 
-    # Reemplazar los espacios y caracteres especiales del título para usar en la URL
-    formatted_title = re.sub(r'[^a-zA-Z0-9]', '-', title.lower())
+        # Formatear el título para usar en la URL
+        formatted_title = re.sub(r'[^a-zA-Z0-9]', '-', title.lower())
 
-    # Subir archivo HTML
-    deploy_url = f"https://api.netlify.com/api/v1/sites/{site_id}/deploys"
-    files = {'file': open(file_path, 'rb')}
-    response = requests.post(deploy_url, headers=headers, files=files)
+        # Subir archivo HTML
+        deploy_url = f"https://api.netlify.com/api/v1/sites/{site_id}/deploys"
+        with open(file_path, "rb") as file:
+            files = {'file': file}
+            response = requests.post(deploy_url, headers=headers, files=files)
+            response.raise_for_status()  # Lanza una excepción si la solicitud falla
 
-    if response.status_code == 200:
-        return f"Page uploaded! URL: {site_info['url']}/{formatted_title}"
-    else:
-        return f"Upload failed: {response.text}"
+        if response.status_code == 200:
+            return f"Page uploaded! URL: {site_info['url']}/{formatted_title}"
+        else:
+            return f"Upload failed: {response.text}"
 
+    except requests.exceptions.RequestException as e:
+        return f"Error uploading to Netlify: {str(e)}"
+    except ValueError as e:
+        return f"Invalid JSON response from Netlify: {str(e)}"
+    
+    
 # Crear una nueva rama en el repositorio de GitHub y hacer el push
 def create_new_branch_and_push(file_name, title):
     # Clonamos el repositorio
@@ -204,6 +216,8 @@ async def generate_html(update: Update, user_id: int):
 
         # Subir el archivo a Netlify
         netlify_url = upload_to_netlify(file_name, title)  # Pasa el argumento 'title'
+        if "Error" in netlify_url or "failed" in netlify_url:
+            raise Exception(netlify_url)
 
         # Crear una nueva branch y subir el archivo al repositorio de GitHub
         github_message = create_new_branch_and_push(file_name, title)
@@ -218,6 +232,7 @@ async def generate_html(update: Update, user_id: int):
     
     except Exception as e:
         await update.message.reply_text(f"Error generating HTML: {str(e)}")
+
 def main():
     print("Starting bot...")
     app = Application.builder().token(TOKEN).build()

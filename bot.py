@@ -4,7 +4,17 @@ import os
 import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-  
+ 
+import re
+from git import Repo
+
+#token de netlifly
+NETLIFY_TOKEN = "REMOVED"
+SITE_ID = "04a8c312-a1f2-4733-b3d3-66c7bd9ec037"
+GITHUB_TOKEN = "REMOVED"
+REPO_OWNER = "spamhandler4"
+REPO_NAME = "generated-page"
+
 # Token del bot
 TOKEN  = 'REMOVED'
 BOT_USERNAME  = '@webCraft456bot'
@@ -14,6 +24,62 @@ IMGUR_CLIENT_ID = "REMOVED"
  
 # Estado del usuario para guardar datos
 user_data = {}
+
+
+def upload_to_netlify(file_path, title):
+    url = "https://api.netlify.com/api/v1/sites"
+    headers = {"Authorization": f"Bearer {NETLIFY_TOKEN}", "Content-Type": "application/json"}
+
+    # Crear un nuevo sitio si no tienes uno
+    response = requests.post(url, headers=headers, json={})
+    site_info = response.json()
+    site_id = site_info["site_id"]
+
+    # Reemplazar los espacios y caracteres especiales del título para usar en la URL
+    formatted_title = re.sub(r'[^a-zA-Z0-9]', '-', title.lower())
+
+    # Subir archivo HTML
+    deploy_url = f"https://api.netlify.com/api/v1/sites/{site_id}/deploys"
+    files = {'file': open(file_path, 'rb')}
+    response = requests.post(deploy_url, headers=headers, files=files)
+
+    if response.status_code == 200:
+        return f"Page uploaded! URL: {site_info['url']}/{formatted_title}"
+    else:
+        return f"Upload failed: {response.text}"
+
+# Crear una nueva rama en el repositorio de GitHub y hacer el push
+def create_new_branch_and_push(file_name, title):
+    # Clonamos el repositorio
+    repo_url = f"https://github.com/{REPO_OWNER}/{REPO_NAME}.git"
+    repo_dir = f"/tmp/{REPO_NAME}"
+    
+    if not os.path.exists(repo_dir):
+        os.makedirs(repo_dir)
+    
+    repo = Repo.clone_from(repo_url, repo_dir)
+
+    # Formateamos el nombre de la rama basado en el título
+    branch_name = re.sub(r'[^a-zA-Z0-9]', '-', title.lower())  # Asegura que el nombre sea válido
+    new_branch = repo.create_head(branch_name)
+
+    # Cambiar a la nueva rama
+    new_branch.checkout()
+
+    # Copiar el archivo HTML generado al repositorio
+    html_file_path = os.path.join(repo_dir, file_name)
+    with open(html_file_path, 'w', encoding='utf-8') as file:
+        file.write("Aquí va el contenido HTML generado")  # El contenido será reemplazado más adelante
+
+    # Agregar y hacer commit de los cambios
+    repo.git.add(html_file_path)
+    repo.index.commit(f"Add new HTML page: {title}")
+
+    # Empujar los cambios a la nueva rama
+    origin = repo.remote(name='origin')
+    origin.push(branch_name)
+
+    return f"File pushed to the new branch: {branch_name}"
 
 # Configura tus credenciales de Imgur y Telegram
  
@@ -108,7 +174,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif "related_image" not in user_data[user_id]:
         user_data[user_id]["related_image"] = imgur_url
         await update.message.reply_text("Image saved! Now, send your Twitter/X link.")
-
+ 
 async def generate_html(update: Update, user_id: int):
     title = user_data[user_id]["title"]
     description = user_data[user_id]["description"]
@@ -134,12 +200,17 @@ async def generate_html(update: Update, user_id: int):
         file_name = f"{user_id}_page.html"
         with open(file_name, "w", encoding="utf-8") as file:
             file.write(html_content)
+        # Subir el archivo a Netlify
+        netlify_url = upload_to_netlify(file_name)
 
-        # Envía el archivo HTML generado
-        await update.message.reply_document(document=open(file_name, "rb"))
-        await update.message.reply_text("Here is your HTML page!")
+        # Crear una nueva branch y subir el archivo al repositorio de GitHub
+        github_message = create_new_branch_and_push(file_name, title)
 
-        # Limpieza del archivo y datos del usuario
+        # Envía el mensaje con la URL de Netlify
+        await update.message.reply_text(f"HTML generated! Here is the Netlify URL: {netlify_url}")
+        await update.message.reply_text(github_message)
+
+        # Limpieza de archivos
         os.remove(file_name)
         user_data.pop(user_id)
     

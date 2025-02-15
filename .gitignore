@@ -1,2 +1,12 @@
-# .gitignore
-variables.env
+# Ignorar el archivo .env
+.env
+
+# Ignorar archivos de entorno de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+
+# Ignorar archivos de configuración local
+*.local

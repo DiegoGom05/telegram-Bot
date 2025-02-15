@@ -13,19 +13,16 @@ import os
 
 load_dotenv()
 
-NETLIFY_TOKEN = os.getenv('NETLIFY_TOKEN')
-GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
-IMGUR_CLIENT_ID = os.getenv('IMGUR_CLIENT_ID')
-SITE_ID = os.getenv('SITE_ID')
-REPO_OWNER = os.getenv('REPO_OWNER')
-REPO_NAME = os.getenv('REPO_NAME')
- 
- 
-TOKEN  = 'REMOVED'
-BOT_USERNAME  = '@webCraft456bot'
+# Obtener secretos desde variables de entorno
+NETLIFY_TOKEN = os.getenv("NETLIFY_TOKEN")
+SITE_ID = os.getenv("SITE_ID")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+REPO_OWNER = os.getenv("REPO_OWNER")
+REPO_NAME = os.getenv("REPO_NAME")
+TOKEN = os.getenv("TOKEN")
+BOT_USERNAME = os.getenv("BOT_USERNAME")
+IMGUR_CLIENT_ID = os.getenv("IMGUR_CLIENT_ID")
 
- 
-IMGUR_CLIENT_ID = "REMOVED"
 # Estado del usuario para guardar datos
 user_data = {}
 

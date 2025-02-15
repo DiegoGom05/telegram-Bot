@@ -175,7 +175,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif "related_image" not in user_data[user_id]:
         user_data[user_id]["related_image"] = imgur_url
         await update.message.reply_text("Image saved! Now, send your Twitter/X link.")
- 
+
 async def generate_html(update: Update, user_id: int):
     title = user_data[user_id]["title"]
     description = user_data[user_id]["description"]
@@ -201,8 +201,9 @@ async def generate_html(update: Update, user_id: int):
         file_name = f"{user_id}_page.html"
         with open(file_name, "w", encoding="utf-8") as file:
             file.write(html_content)
+
         # Subir el archivo a Netlify
-        netlify_url = upload_to_netlify(file_name)
+        netlify_url = upload_to_netlify(file_name, title)  # Pasa el argumento 'title'
 
         # Crear una nueva branch y subir el archivo al repositorio de GitHub
         github_message = create_new_branch_and_push(file_name, title)
@@ -217,7 +218,6 @@ async def generate_html(update: Update, user_id: int):
     
     except Exception as e:
         await update.message.reply_text(f"Error generating HTML: {str(e)}")
-
 def main():
     print("Starting bot...")
     app = Application.builder().token(TOKEN).build()
